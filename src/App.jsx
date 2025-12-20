@@ -233,7 +233,11 @@ ${baseType === '全国换住' && routePlan.trim() ? `换住路线：${routePlan.
         body: JSON.stringify(dingTalkMessage)
       })
       
-      const result = await response.json()
+      // 诊断：显示服务器返回状态
+      const text = await response.text()
+      alert('服务器返回状态: ' + response.status + ' 内容: ' + text)
+      
+      const result = JSON.parse(text)
       console.log('📥 钉钉返回:', result)
       
       if (result.errcode === 0) {
@@ -247,6 +251,8 @@ ${baseType === '全国换住' && routePlan.trim() ? `换住路线：${routePlan.
       }
     } catch (error) {
       console.error('钉钉发送失败:', error)
+      // 诊断：显示前端捕获的错误
+      alert('前端捕获错误: ' + error.message)
       setSubmissionResult({
         success: false,
         message: '❌ 发送失败，请检查网络连接后重试。'

@@ -16,8 +16,8 @@ import {
   MessageSquare
 } from 'lucide-react'
 
-// 钉钉群机器人 Webhook 配置
-const DINGTALK_WEBHOOK = 'https://oapi.dingtalk.com/robot/send?access_token=8eea0d7afa945d0a5c46bc9533932ec8685726e72a5d83d69d0a3ab260170efc'
+// 钉钉 API 代理端点（通过 Vercel Serverless Function 中转，避免 CORS 问题）
+const DINGTALK_API = '/api/dingtalk'
 
 const tagData = {
   sellingPoints: {
@@ -224,8 +224,8 @@ ${baseType === '全国换住' && routePlan.trim() ? `换住路线：${routePlan.
     console.log('📤 发送钉钉消息:', dingTalkMessage)
     
     try {
-      // 发送 POST 请求到钉钉 Webhook
-      const response = await fetch(DINGTALK_WEBHOOK, {
+      // 发送 POST 请求到钉钉 API 代理
+      const response = await fetch(DINGTALK_API, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

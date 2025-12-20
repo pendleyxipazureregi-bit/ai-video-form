@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import emailjs from 'emailjs-com'
 import { 
   Sparkles, 
   MapPin, 
@@ -17,12 +16,8 @@ import {
   MessageSquare
 } from 'lucide-react'
 
-// EmailJS Configuration
-const EMAILJS_CONFIG = {
-  serviceId: 'service_pn2dnf8',
-  templateId: 'template_bya70km',
-  publicKey: 'nnfxGfqpFaGdvCtHB'
-}
+// 钉钉群机器人 Webhook 配置
+const DINGTALK_WEBHOOK = 'https://oapi.dingtalk.com/robot/send?access_token=8eea0d7afa945d0a5c46bc9533932ec8685726e72a5d83d69d0a3ab260170efc'
 
 const tagData = {
   sellingPoints: {
@@ -157,60 +152,6 @@ function App() {
     }))
   }
 
-  // Format data for email template
-  const formatEmailData = () => {
-    const baseNames = baseType === '指定基地' 
-      ? singleBaseName 
-      : multipleBaseNames.filter(n => n.trim()).join('、')
-    
-    const formatTagSection = (key, title) => {
-      const tags = selectedTags[key].join('、') || '未选择'
-      const custom = customInputs[key] ? `\n  补充: ${customInputs[key]}` : ''
-      return `${title}: ${tags}${custom}`
-    }
-
-    return {
-      contactName,
-      baseType,
-      baseNames,
-      routePlan: baseType === '全国换住' ? routePlan : '不适用',
-      price: `¥${price} 元/月`,
-      sellingPoints: formatTagSection('sellingPoints', '卖点亮点'),
-      personas: formatTagSection('personas', '目标人群'),
-      painPoints: formatTagSection('painPoints', '痛点问题'),
-      scenarios: `使用场景: ${selectedTags.scenarios.join('、') || '未选择'}`,
-      
-      // Full formatted message for email body
-      fullMessage: `
-【津合智能客户合作清单】
-
-━━━━━━━━━━━━━━━━━━━━━━
-📋 基本信息
-━━━━━━━━━━━━━━━━━━━━━━
-联系人姓名: ${contactName}
-基地类型: ${baseType}
-${baseType === '指定基地' ? `基地名称: ${singleBaseName}` : `基地列表: ${baseNames}`}
-${baseType === '全国换住' && routePlan ? `换住路线规划:\n${routePlan}` : ''}
-价格: ¥${price} 元/月
-
-━━━━━━━━━━━━━━━━━━━━━━
-🏷️ 标签选择
-━━━━━━━━━━━━━━━━━━━━━━
-${formatTagSection('sellingPoints', '✨ 卖点亮点')}
-
-${formatTagSection('personas', '👥 目标人群')}
-
-${formatTagSection('painPoints', '⚠️ 痛点问题')}
-
-🌤️ 使用场景: ${selectedTags.scenarios.join('、') || '未选择'}
-
-━━━━━━━━━━━━━━━━━━━━━━
-提交时间: ${new Date().toLocaleString('zh-CN')}
-━━━━━━━━━━━━━━━━━━━━━━
-      `.trim()
-    }
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     
@@ -237,57 +178,75 @@ ${formatTagSection('painPoints', '⚠️ 痛点问题')}
     
     setIsSubmitting(true)
     
-    // Merge tags with custom inputs
-    const mergeTagsWithExtra = (tags, extra) => {
-      const tagsStr = tags.length > 0 ? tags.join(', ') : '未选择'
-      return extra.trim() ? `${tagsStr} | 补充：${extra.trim()}` : tagsStr
+    // 格式化标签内容（包含补充信息）
+    const formatTagWithExtra = (tags, extra) => {
+      const tagsStr = tags.length > 0 ? tags.join('、') : '未选择'
+      return extra.trim() ? `${tagsStr}（补充：${extra.trim()}）` : tagsStr
     }
     
-    // Prepare base list
+    // 准备基地列表
     const baseList = baseType === '指定基地' 
       ? singleBaseName 
-      : multipleBaseNames.filter(n => n.trim()).join(', ')
+      : multipleBaseNames.filter(n => n.trim()).join('、')
     
-    // Prepare template parameters with exact variable names
-    const templateParams = {
-      user_name: contactName,
-      base_type: baseType,
-      price: `¥${price} 元/月`,
-      base_list: baseList,
-      exchange_route: baseType === '全国换住' ? (routePlan.trim() || '未填写') : '不适用（指定基地模式）',
-      selling_points_data: mergeTagsWithExtra(selectedTags.sellingPoints, customInputs.sellingPoints),
-      personas_data: mergeTagsWithExtra(selectedTags.personas, customInputs.personas),
-      pain_points_data: mergeTagsWithExtra(selectedTags.painPoints, customInputs.painPoints),
-      scenarios_data: selectedTags.scenarios.length > 0 ? selectedTags.scenarios.join(', ') : '未选择',
-      date: new Date().toLocaleString('zh-CN', { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      })
+    // 构建钉钉消息内容（必须包含关键词"需求"）
+    const messageContent = `【客户需求】津合智能客户合作清单
+
+━━━━━━━━━━━━━━━━━━━━
+📋 基本信息
+━━━━━━━━━━━━━━━━━━━━
+联系人姓名：${contactName}
+产品模式：${baseType}
+价格信息：¥${price} 元/月
+${baseType === '指定基地' ? `基地名称：${singleBaseName}` : `基地列表：${baseList}`}
+${baseType === '全国换住' && routePlan.trim() ? `换住路线：${routePlan.trim()}` : ''}
+
+━━━━━━━━━━━━━━━━━━━━
+🏷️ 标签选择
+━━━━━━━━━━━━━━━━━━━━
+✨ 卖点亮点：${formatTagWithExtra(selectedTags.sellingPoints, customInputs.sellingPoints)}
+👥 目标人群：${formatTagWithExtra(selectedTags.personas, customInputs.personas)}
+⚠️ 痛点问题：${formatTagWithExtra(selectedTags.painPoints, customInputs.painPoints)}
+🌤️ 使用场景：${selectedTags.scenarios.length > 0 ? selectedTags.scenarios.join('、') : '未选择'}
+
+━━━━━━━━━━━━━━━━━━━━
+提交时间：${new Date().toLocaleString('zh-CN')}
+━━━━━━━━━━━━━━━━━━━━`
+    
+    // 钉钉消息体
+    const dingTalkMessage = {
+      msgtype: 'text',
+      text: {
+        content: messageContent
+      }
     }
     
-    // Log the formatted data (for debugging)
-    console.log('📧 EmailJS Template Params:', templateParams)
+    console.log('📤 发送钉钉消息:', dingTalkMessage)
     
     try {
-      // Send email via EmailJS
-      await emailjs.send(
-        EMAILJS_CONFIG.serviceId,
-        EMAILJS_CONFIG.templateId,
-        templateParams,
-        EMAILJS_CONFIG.publicKey
-      )
-      
-      setSubmissionResult({
-        success: true,
-        message: '🎉 表单已成功提交！邮件已发送给津合智能团队，我们会尽快与您联系。'
+      // 发送 POST 请求到钉钉 Webhook
+      const response = await fetch(DINGTALK_WEBHOOK, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(dingTalkMessage)
       })
       
-      setIsSubmitted(true)
+      const result = await response.json()
+      console.log('📥 钉钉返回:', result)
+      
+      if (result.errcode === 0) {
+        setSubmissionResult({
+          success: true,
+          message: '🎉 表单已成功提交！需求已发送给津合智能团队，我们会尽快与您联系。'
+        })
+        setIsSubmitted(true)
+      } else {
+        throw new Error(result.errmsg || '发送失败')
+      }
     } catch (error) {
-      console.error('Email sending failed:', error)
+      console.error('钉钉发送失败:', error)
       setSubmissionResult({
         success: false,
         message: '❌ 发送失败，请检查网络连接后重试。'
@@ -736,7 +695,7 @@ ${formatTagSection('painPoints', '⚠️ 痛点问题')}
                     transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                     className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full"
                   />
-                  <span>正在发送 AI 需求...</span>
+                  <span>AI 分析中...</span>
                 </>
               ) : (
                 <>

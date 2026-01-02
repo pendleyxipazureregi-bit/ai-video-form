@@ -20,17 +20,17 @@ import {
 // API 端点
 const DOWNLOAD_API = '/api/get-download-url'
 
-// 行业列表
+// 行业列表 - id 直接使用中文名称，匹配腾讯云 COS 目录结构
 const industries = [
-  { id: 'elderly-care', name: '康养旅居', icon: '🏡' },
-  { id: 'real-estate', name: '房产销售', icon: '🏢' },
-  { id: 'education', name: '教育培训', icon: '📚' },
-  { id: 'healthcare', name: '医疗健康', icon: '🏥' },
-  { id: 'tourism', name: '旅游出行', icon: '✈️' },
-  { id: 'finance', name: '金融理财', icon: '💰' },
-  { id: 'retail', name: '零售电商', icon: '🛒' },
-  { id: 'food', name: '餐饮美食', icon: '🍜' },
-  { id: 'other', name: '其他行业', icon: '📦' }
+  { id: '康养旅居', name: '康养旅居', icon: '🏡' },
+  { id: '房产销售', name: '房产销售', icon: '🏢' },
+  { id: '教育培训', name: '教育培训', icon: '📚' },
+  { id: '医疗健康', name: '医疗健康', icon: '🏥' },
+  { id: '旅游出行', name: '旅游出行', icon: '✈️' },
+  { id: '金融理财', name: '金融理财', icon: '💰' },
+  { id: '零售电商', name: '零售电商', icon: '🛒' },
+  { id: '餐饮美食', name: '餐饮美食', icon: '🍜' },
+  { id: '其他行业', name: '其他行业', icon: '📦' }
 ]
 
 function PickupPage({ onBack }) {

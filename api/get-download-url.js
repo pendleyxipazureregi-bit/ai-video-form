@@ -119,10 +119,18 @@ export default async function handler(req, res) {
     // 构建搜索前缀：行业/取件码/
     const prefix = `${industryFolder}/${normalizedCode}/`
 
+    console.log('=== COS Debug Info ===')
+    console.log('Bucket:', BUCKET)
+    console.log('Region:', REGION)
+    console.log('Industry:', industry, '->', industryFolder)
+    console.log('Pickup Code:', normalizedCode)
     console.log('Searching prefix:', prefix)
 
     // 列出该前缀下的所有文件
     const allObjects = await listFiles(prefix)
+    
+    console.log('Found objects:', allObjects.length)
+    console.log('Objects:', JSON.stringify(allObjects, null, 2))
 
     // 过滤：排除文件夹本身，只保留视频文件
     const videoFiles = allObjects.filter(obj => {

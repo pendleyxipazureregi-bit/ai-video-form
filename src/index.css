@@ -53,3 +53,13 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
+/* Safe area for mobile devices (iPhone X and later) */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Textarea focus styles */
+textarea:focus {
+  outline: none;
+}
+

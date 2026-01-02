@@ -13,8 +13,10 @@ import {
   CheckCircle2,
   User,
   Route,
-  MessageSquare
+  MessageSquare,
+  Package
 } from 'lucide-react'
+import PickupPage from './PickupPage'
 
 // 钉钉 API 代理端点（通过 Vercel Serverless Function 中转，避免 CORS 问题）
 const DINGTALK_API = '/api/dingtalk'
@@ -90,6 +92,9 @@ const colorClasses = {
 }
 
 function App() {
+  // Page state: 'form' | 'pickup'
+  const [currentPage, setCurrentPage] = useState('form')
+  
   // Basic info
   const [contactName, setContactName] = useState('')
   const [baseType, setBaseType] = useState('指定基地')
@@ -117,6 +122,11 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [submissionResult, setSubmissionResult] = useState(null)
+
+  // 如果是领取页面，渲染 PickupPage
+  if (currentPage === 'pickup') {
+    return <PickupPage onBack={() => setCurrentPage('form')} />
+  }
 
   const handleAddBase = () => {
     setMultipleBaseNames([...multipleBaseNames, ''])
@@ -221,8 +231,6 @@ ${baseType === '全国换住' && routePlan.trim() ? `换住路线：${routePlan.
       }
     }
     
-    console.log('📤 发送钉钉消息:', dingTalkMessage)
-    
     try {
       // 发送 POST 请求到钉钉 API 代理
       const response = await fetch(DINGTALK_API, {
@@ -233,12 +241,7 @@ ${baseType === '全国换住' && routePlan.trim() ? `换住路线：${routePlan.
         body: JSON.stringify(dingTalkMessage)
       })
       
-      // 诊断：显示服务器返回状态
-      const text = await response.text()
-      alert('服务器返回状态: ' + response.status + ' 内容: ' + text)
-      
-      const result = JSON.parse(text)
-      console.log('📥 钉钉返回:', result)
+      const result = await response.json()
       
       if (result.errcode === 0) {
         setSubmissionResult({
@@ -250,9 +253,6 @@ ${baseType === '全国换住' && routePlan.trim() ? `换住路线：${routePlan.
         throw new Error(result.errmsg || '发送失败')
       }
     } catch (error) {
-      console.error('钉钉发送失败:', error)
-      // 诊断：显示前端捕获的错误
-      alert('前端捕获错误: ' + error.message)
       setSubmissionResult({
         success: false,
         message: '❌ 发送失败，请检查网络连接后重试。'
@@ -413,10 +413,25 @@ ${baseType === '全国换住' && routePlan.trim() ? `换住路线：${routePlan.
           transition={{ duration: 0.5 }}
           className="text-center mb-8"
         >
-          <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm mb-4">
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            <span className="text-sm text-gray-600 font-medium">AI智能视频生成</span>
+          {/* Page Toggle */}
+          <div className="flex justify-center gap-2 mb-4">
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border-2 border-primary-500"
+            >
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span className="text-sm text-primary-600 font-medium">提交需求</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentPage('pickup')}
+              className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm hover:bg-white/80 transition-all"
+            >
+              <Package className="w-4 h-4 text-emerald-500" />
+              <span className="text-sm text-gray-600 font-medium">领取内容</span>
+            </button>
           </div>
+          
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-700 via-primary-600 to-primary-800 bg-clip-text text-transparent font-display mb-3">
             津合智能客户合作清单
           </h1>

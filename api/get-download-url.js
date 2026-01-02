@@ -1,5 +1,5 @@
 // Vercel Serverless Function - 腾讯云 COS 文件夹列表 & 预签名下载链接生成
-const COS = require('cos-nodejs-sdk-v5')
+import COS from 'cos-nodejs-sdk-v5'
 
 // 初始化 COS 客户端（使用环境变量）
 const cos = new COS({
@@ -71,6 +71,15 @@ function isVideoFile(key) {
   const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.webm', '.m4v']
   const lowerKey = key.toLowerCase()
   return videoExtensions.some(ext => lowerKey.endsWith(ext))
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 export default async function handler(req, res) {
@@ -185,13 +194,4 @@ export default async function handler(req, res) {
       message: '服务器错误，请稍后重试'
     })
   }
-}
-
-// 格式化文件大小
-function formatFileSize(bytes) {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }

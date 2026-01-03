@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Package, 
@@ -14,7 +14,12 @@ import {
   FolderOpen,
   Film,
   HardDrive,
-  RotateCcw
+  RotateCcw,
+  ChevronDown,
+  ChevronRight,
+  User,
+  Copy,
+  Check
 } from 'lucide-react'
 
 // API 端点
@@ -33,6 +38,21 @@ const industries = [
   { id: '其他行业', name: '其他行业', icon: '📦' }
 ]
 
+// 从完整路径中提取账号名（取件码后的下一级目录）
+function extractAccountName(key, pickupCode) {
+  // 路径格式: 行业/取件码/账号名/文件名.mp4
+  const parts = key.split('/')
+  const pickupIndex = parts.findIndex(p => p === pickupCode)
+  
+  if (pickupIndex !== -1 && pickupIndex + 1 < parts.length - 1) {
+    // 取件码后面的那一级就是账号名
+    return parts[pickupIndex + 1]
+  }
+  
+  // 如果没有子文件夹，返回默认值
+  return '默认'
+}
+
 function PickupPage({ onBack }) {
   const [selectedIndustry, setSelectedIndustry] = useState(null)
   const [pickupCode, setPickupCode] = useState('')
@@ -42,6 +62,71 @@ function PickupPage({ onBack }) {
   // 文件夹视图状态
   const [folderData, setFolderData] = useState(null)
   const [downloadingFile, setDownloadingFile] = useState(null)
+  const [copiedFile, setCopiedFile] = useState(null)
+  
+  // 折叠状态管理 - 记录每个账号是否展开
+  const [expandedAccounts, setExpandedAccounts] = useState({})
+
+  // 按账号分组文件
+  const groupedVideos = useMemo(() => {
+    if (!folderData?.files) return {}
+    
+    const groups = {}
+    folderData.files.forEach(file => {
+      const accountName = extractAccountName(file.key, folderData.folderName)
+      if (!groups[accountName]) {
+        groups[accountName] = []
+      }
+      groups[accountName].push(file)
+    })
+    
+    // 对每个组内的文件按名称排序
+    Object.keys(groups).forEach(account => {
+      groups[account].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+    })
+    
+    return groups
+  }, [folderData])
+
+  // 获取账号列表（按名称排序）
+  const accountNames = useMemo(() => {
+    return Object.keys(groupedVideos).sort((a, b) => a.localeCompare(b, 'zh-CN'))
+  }, [groupedVideos])
+
+  // 初始化所有账号为展开状态
+  const initializeExpandedState = (groups) => {
+    const initialState = {}
+    Object.keys(groups).forEach(account => {
+      initialState[account] = true // 默认展开
+    })
+    setExpandedAccounts(initialState)
+  }
+
+  // 切换账号折叠状态
+  const toggleAccountExpand = (accountName) => {
+    setExpandedAccounts(prev => ({
+      ...prev,
+      [accountName]: !prev[accountName]
+    }))
+  }
+
+  // 展开全部
+  const expandAll = () => {
+    const newState = {}
+    accountNames.forEach(account => {
+      newState[account] = true
+    })
+    setExpandedAccounts(newState)
+  }
+
+  // 折叠全部
+  const collapseAll = () => {
+    const newState = {}
+    accountNames.forEach(account => {
+      newState[account] = false
+    })
+    setExpandedAccounts(newState)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -82,6 +167,17 @@ function PickupPage({ onBack }) {
           fileCount: data.fileCount,
           files: data.files
         })
+        
+        // 初始化折叠状态（所有账号默认展开）
+        const groups = {}
+        data.files.forEach(file => {
+          const accountName = extractAccountName(file.key, data.folderName)
+          if (!groups[accountName]) {
+            groups[accountName] = []
+          }
+          groups[accountName].push(file)
+        })
+        initializeExpandedState(groups)
       } else {
         setError(data.message || '未找到该取件码对应的文件')
       }
@@ -111,10 +207,24 @@ function PickupPage({ onBack }) {
     }, 2000)
   }
 
+  // 复制链接
+  const handleCopyLink = async (file) => {
+    try {
+      await navigator.clipboard.writeText(file.url)
+      setCopiedFile(file.name)
+      setTimeout(() => {
+        setCopiedFile(null)
+      }, 2000)
+    } catch (err) {
+      console.error('复制失败:', err)
+    }
+  }
+
   // 返回输入界面
   const handleBackToInput = () => {
     setFolderData(null)
     setError(null)
+    setExpandedAccounts({})
   }
 
   // 完全重置
@@ -123,9 +233,10 @@ function PickupPage({ onBack }) {
     setError(null)
     setPickupCode('')
     setSelectedIndustry(null)
+    setExpandedAccounts({})
   }
 
-  // 文件夹视图 - 显示文件列表
+  // 文件夹视图 - 显示按账号分组的文件列表
   if (folderData) {
     return (
       <div className="min-h-screen pb-safe">
@@ -149,85 +260,186 @@ function PickupPage({ onBack }) {
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-bold text-gray-800">
-                  📂 当前目录：{folderData.folderName}
+                  📂 取件码：{folderData.folderName}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  {folderData.industry} · 共 {folderData.fileCount} 个视频
+                  {folderData.industry} · {accountNames.length} 个账号 · 共 {folderData.fileCount} 个视频
                 </p>
               </div>
             </div>
             
-            {/* 返回按钮 */}
-            <button
-              onClick={handleBackToInput}
-              className="flex items-center gap-2 text-gray-500 hover:text-primary-600 transition-colors text-sm"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>返回上级</span>
-            </button>
+            {/* 操作按钮区 */}
+            <div className="flex items-center justify-between">
+              <button
+                onClick={handleBackToInput}
+                className="flex items-center gap-2 text-gray-500 hover:text-primary-600 transition-colors text-sm"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>返回上级</span>
+              </button>
+              
+              {/* 展开/折叠全部按钮 */}
+              {accountNames.length > 1 && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={expandAll}
+                    className="text-xs text-primary-600 hover:text-primary-700 transition-colors"
+                  >
+                    展开全部
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <button
+                    onClick={collapseAll}
+                    className="text-xs text-primary-600 hover:text-primary-700 transition-colors"
+                  >
+                    折叠全部
+                  </button>
+                </div>
+              )}
+            </div>
           </motion.div>
 
-          {/* 文件列表 */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="space-y-3"
-          >
-            {folderData.files.map((file, index) => (
-              <motion.div
-                key={file.name}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 + index * 0.05 }}
-                className="bg-white rounded-xl p-4 shadow-lg shadow-gray-200/50 hover:shadow-xl transition-all"
-              >
-                <div className="flex items-center gap-4">
-                  {/* 视频图标 */}
-                  <div className="w-14 h-14 bg-gradient-to-br from-primary-100 to-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Film className="w-7 h-7 text-primary-600" />
-                  </div>
-                  
-                  {/* 文件信息 */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-800 truncate" title={file.name}>
-                      {file.name}
-                    </h3>
-                    <div className="flex items-center gap-3 text-sm text-gray-400 mt-1">
-                      <span className="flex items-center gap-1">
-                        <HardDrive className="w-3 h-3" />
-                        {file.sizeFormatted}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* 下载按钮 */}
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handleDownload(file)}
-                    disabled={downloadingFile === file.name}
-                    className={`px-4 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 transition-all ${
-                      downloadingFile === file.name
-                        ? 'bg-emerald-100 text-emerald-600'
-                        : 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-500/30 hover:shadow-xl hover:shadow-primary-500/40'
-                    }`}
+          {/* 按账号分组显示文件列表 */}
+          <div className="space-y-4">
+            {accountNames.map((accountName, groupIndex) => {
+              const accountFiles = groupedVideos[accountName]
+              const isExpanded = expandedAccounts[accountName] !== false
+              
+              return (
+                <motion.div
+                  key={accountName}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: groupIndex * 0.1 }}
+                  className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 overflow-hidden"
+                >
+                  {/* 账号标题栏 - 可点击折叠/展开 */}
+                  <button
+                    onClick={() => toggleAccountExpand(accountName)}
+                    className="w-full px-5 py-4 flex items-center gap-3 hover:bg-gray-50 transition-colors"
                   >
-                    {downloadingFile === file.name ? (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>已下载</span>
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4" />
-                        <span>下载</span>
-                      </>
+                    {/* 折叠图标 */}
+                    <motion.div
+                      animate={{ rotate: isExpanded ? 0 : -90 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    </motion.div>
+                    
+                    {/* 账号图标 */}
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary-100 to-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <User className="w-5 h-5 text-primary-600" />
+                    </div>
+                    
+                    {/* 账号名称 */}
+                    <div className="flex-1 text-left">
+                      <h3 className="font-bold text-gray-800 text-base">
+                        📂 {accountName}
+                      </h3>
+                      <p className="text-xs text-gray-400">
+                        {accountFiles.length} 个视频
+                      </p>
+                    </div>
+                    
+                    {/* 视频数量标签 */}
+                    <div className="bg-primary-50 text-primary-600 px-3 py-1 rounded-full text-xs font-medium">
+                      {accountFiles.length} 个
+                    </div>
+                  </button>
+                  
+                  {/* 文件列表 - 可折叠 */}
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-4 pb-4 space-y-3">
+                          {accountFiles.map((file, fileIndex) => (
+                            <motion.div
+                              key={file.name}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: fileIndex * 0.03 }}
+                              className="bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-all"
+                            >
+                              <div className="flex items-center gap-3">
+                                {/* 视频图标 */}
+                                <div className="w-12 h-12 bg-gradient-to-br from-rose-100 to-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                                  <Film className="w-6 h-6 text-rose-500" />
+                                </div>
+                                
+                                {/* 文件信息 */}
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-gray-800 text-sm truncate" title={file.name}>
+                                    {file.name}
+                                  </h4>
+                                  <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                                    <span className="flex items-center gap-1">
+                                      <HardDrive className="w-3 h-3" />
+                                      {file.sizeFormatted}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                {/* 操作按钮组 */}
+                                <div className="flex gap-2">
+                                  {/* 复制链接按钮 */}
+                                  <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => handleCopyLink(file)}
+                                    className={`p-2.5 rounded-xl transition-all ${
+                                      copiedFile === file.name
+                                        ? 'bg-emerald-100 text-emerald-600'
+                                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                    }`}
+                                    title="复制链接"
+                                  >
+                                    {copiedFile === file.name ? (
+                                      <Check className="w-4 h-4" />
+                                    ) : (
+                                      <Copy className="w-4 h-4" />
+                                    )}
+                                  </motion.button>
+                                  
+                                  {/* 下载按钮 */}
+                                  <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => handleDownload(file)}
+                                    disabled={downloadingFile === file.name}
+                                    className={`px-3 py-2.5 rounded-xl font-medium text-xs flex items-center gap-1.5 transition-all ${
+                                      downloadingFile === file.name
+                                        ? 'bg-emerald-100 text-emerald-600'
+                                        : 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-500/30 hover:shadow-xl hover:shadow-primary-500/40'
+                                    }`}
+                                  >
+                                    {downloadingFile === file.name ? (
+                                      <>
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        <span>已下载</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Download className="w-4 h-4" />
+                                        <span>下载</span>
+                                      </>
+                                    )}
+                                  </motion.button>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </motion.div>
                     )}
-                  </motion.button>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
+                  </AnimatePresence>
+                </motion.div>
+              )
+            })}
+          </div>
 
           {/* 底部操作区 */}
           <motion.div
@@ -239,7 +451,7 @@ function PickupPage({ onBack }) {
             {/* 下载全部提示 */}
             <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 text-center">
               <p className="text-sm text-emerald-700">
-                💡 点击文件右侧按钮可单独下载每个视频
+                💡 点击账号标题可折叠/展开，点击下载按钮可下载视频
               </p>
             </div>
             

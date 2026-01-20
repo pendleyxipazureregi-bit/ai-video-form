@@ -19,14 +19,17 @@ function isVideoFile(key, size = 0) {
     return true;
   }
   
-  // 2. 没有扩展名但大小 > 1MB 的文件（很可能是视频）
-  // 检查文件名最后一部分是否没有常见扩展名
-  const fileName = key.split('/').pop();
-  const hasNoExtension = !fileName.includes('.') || fileName.lastIndexOf('.') < fileName.length - 5;
+  // 2. 大文件（> 1MB）且没有常见文件扩展名的，视为视频文件
   const isLargeFile = parseInt(size) > 1024 * 1024; // > 1MB
-  
-  if (hasNoExtension && isLargeFile) {
-    return true;
+  if (isLargeFile) {
+    // 常见的非视频文件扩展名
+    const nonVideoExtensions = ['.txt', '.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.zip', '.rar', '.html', '.css', '.js', '.json'];
+    const hasNonVideoExtension = nonVideoExtensions.some(ext => lowerKey.endsWith(ext));
+    
+    // 如果不是已知的非视频文件，就认为是视频
+    if (!hasNonVideoExtension) {
+      return true;
+    }
   }
   
   return false;

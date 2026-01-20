@@ -10,10 +10,26 @@ function formatFileSize(bytes) {
 }
 
 // 判断是否为视频文件
-function isVideoFile(key) {
+function isVideoFile(key, size = 0) {
   const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.webm', '.m4v'];
   const lowerKey = key.toLowerCase();
-  return videoExtensions.some(ext => lowerKey.endsWith(ext));
+  
+  // 1. 有视频扩展名的文件
+  if (videoExtensions.some(ext => lowerKey.endsWith(ext))) {
+    return true;
+  }
+  
+  // 2. 没有扩展名但大小 > 1MB 的文件（很可能是视频）
+  // 检查文件名最后一部分是否没有常见扩展名
+  const fileName = key.split('/').pop();
+  const hasNoExtension = !fileName.includes('.') || fileName.lastIndexOf('.') < fileName.length - 5;
+  const isLargeFile = parseInt(size) > 1024 * 1024; // > 1MB
+  
+  if (hasNoExtension && isLargeFile) {
+    return true;
+  }
+  
+  return false;
 }
 
 export default async function handler(request, response) {
@@ -70,8 +86,8 @@ export default async function handler(request, response) {
       if (parseInt(item.Size) === 0) return false;
       // 排除以 / 结尾的（文件夹标记）
       if (item.Key.endsWith('/')) return false;
-      // 只保留视频文件
-      return isVideoFile(item.Key);
+      // 只保留视频文件（传入文件大小用于判断无扩展名的大文件）
+      return isVideoFile(item.Key, item.Size);
     });
 
     if (videoFiles.length === 0) {
@@ -83,6 +99,9 @@ export default async function handler(request, response) {
 
     const files = await Promise.all(
       videoFiles.map(async (item) => {
+        // 从 Key 中提取纯文件名
+        const fileName = item.Key.split('/').pop();
+        
         // 使用 Promise 包装获取签名 URL
         const url = await new Promise((resolve, reject) => {
           cos.getObjectUrl({
@@ -91,6 +110,10 @@ export default async function handler(request, response) {
             Key: item.Key,
             Sign: true,
             Expires: 1800, // 30分钟有效
+            Query: {
+              // 强制浏览器下载而非在线播放，支持中文文件名
+              'response-content-disposition': 'attachment; filename="' + encodeURIComponent(fileName) + '"'
+            }
           }, (err, data) => {
             if (err) reject(err);
             else resolve(data.Url);
@@ -101,7 +124,7 @@ export default async function handler(request, response) {
 
         return {
           key: item.Key, // 返回完整路径，用于前端解析账号名
-          name: item.Key.split('/').pop(), // 获取纯文件名
+          name: fileName, // 获取纯文件名
           url: url,
           size: fileSize,
           sizeFormatted: formatFileSize(fileSize),

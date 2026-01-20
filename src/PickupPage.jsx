@@ -424,7 +424,7 @@ function PickupPage({ onBack }) {
                                     ) : (
                                       <>
                                         <Download className="w-4 h-4" />
-                                        <span>下载</span>
+                                        <span>下载原画 (推荐)</span>
                                       </>
                                     )}
                                   </motion.button>
@@ -448,10 +448,10 @@ function PickupPage({ onBack }) {
             transition={{ delay: 0.3 }}
             className="mt-8 space-y-4"
           >
-            {/* 下载全部提示 */}
-            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 text-center">
-              <p className="text-sm text-emerald-700">
-                💡 点击账号标题可折叠/展开，点击下载按钮可下载视频
+            {/* 下载提示 - 警告风格 */}
+            <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4 text-center">
+              <p className="text-sm text-orange-700 font-medium">
+                📱 安卓用户请注意：在线播放可能会卡顿，强烈推荐点击"下载原画"保存到相册，观看丝滑流畅！
               </p>
             </div>
             

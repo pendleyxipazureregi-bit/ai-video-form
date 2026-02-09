@@ -59,39 +59,52 @@ export default async function handler(request, response) {
     });
 
     // 3. 获取参数 (从 body 中)
-    const { industry, pickupCode } = request.body || {};
+    const { pickupCode } = request.body || {};
 
-    if (!industry || !pickupCode) {
-      return response.status(400).json({ error: 'Missing parameters' });
+    if (!pickupCode) {
+      return response.status(400).json({ error: 'Missing parameters: pickupCode is required' });
     }
 
     const bucket = process.env.TENCENT_BUCKET;
     const region = process.env.TENCENT_REGION;
-    // 注意：这里确保路径最后有斜杠，表示搜索文件夹
-    const prefix = `${industry}/${pickupCode}/`;
 
-    // 4. 获取文件列表
-    const data = await new Promise((resolve, reject) => {
-      cos.getBucket({
-        Bucket: bucket,
-        Region: region,
-        Prefix: prefix,
-        MaxKeys: 1000, // 增大限制以获取更多文件
-      }, (err, data) => {
-        if (err) reject(err);
-        else resolve(data);
+    // 所有行业文件夹列表
+    const ALL_INDUSTRIES = [
+      '康养旅居', '房产销售', '教育培训', '医疗健康',
+      '旅游出行', '金融理财', '零售电商', '餐饮美食', '其他行业'
+    ];
+
+    // 4. 遍历所有行业文件夹，查找取件码对应的文件
+    let videoFiles = [];
+    let matchedIndustry = null;
+
+    for (const industry of ALL_INDUSTRIES) {
+      const prefix = `${industry}/${pickupCode}/`;
+
+      const data = await new Promise((resolve, reject) => {
+        cos.getBucket({
+          Bucket: bucket,
+          Region: region,
+          Prefix: prefix,
+          MaxKeys: 1000,
+        }, (err, data) => {
+          if (err) reject(err);
+          else resolve(data);
+        });
       });
-    });
 
-    // 5. 过滤并生成预签名链接
-    const videoFiles = (data.Contents || []).filter(item => {
-      // 排除大小为0的对象（通常是文件夹）
-      if (parseInt(item.Size) === 0) return false;
-      // 排除以 / 结尾的（文件夹标记）
-      if (item.Key.endsWith('/')) return false;
-      // 只保留视频文件（传入文件大小用于判断无扩展名的大文件）
-      return isVideoFile(item.Key, item.Size);
-    });
+      const found = (data.Contents || []).filter(item => {
+        if (parseInt(item.Size) === 0) return false;
+        if (item.Key.endsWith('/')) return false;
+        return isVideoFile(item.Key, item.Size);
+      });
+
+      if (found.length > 0) {
+        videoFiles = found;
+        matchedIndustry = industry;
+        break; // 找到后立即停止遍历
+      }
+    }
 
     if (videoFiles.length === 0) {
       return response.status(404).json({
@@ -142,7 +155,7 @@ export default async function handler(request, response) {
     return response.status(200).json({
       success: true,
       folderName: pickupCode,
-      industry: industry,
+      industry: matchedIndustry,
       fileCount: files.length,
       files: files,
     });

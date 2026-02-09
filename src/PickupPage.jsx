@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Package, 
   KeyRound, 
-  Building2, 
   Download, 
   CheckCircle2, 
   ArrowLeft,
@@ -25,19 +24,6 @@ import {
 // API 端点
 const DOWNLOAD_API = '/api/get-download-url'
 
-// 行业列表 - id 直接使用中文名称，匹配腾讯云 COS 目录结构
-const industries = [
-  { id: '康养旅居', name: '康养旅居', icon: '🏡' },
-  { id: '房产销售', name: '房产销售', icon: '🏢' },
-  { id: '教育培训', name: '教育培训', icon: '📚' },
-  { id: '医疗健康', name: '医疗健康', icon: '🏥' },
-  { id: '旅游出行', name: '旅游出行', icon: '✈️' },
-  { id: '金融理财', name: '金融理财', icon: '💰' },
-  { id: '零售电商', name: '零售电商', icon: '🛒' },
-  { id: '餐饮美食', name: '餐饮美食', icon: '🍜' },
-  { id: '其他行业', name: '其他行业', icon: '📦' }
-]
-
 // 从完整路径中提取账号名（取件码后的下一级目录）
 function extractAccountName(key, pickupCode) {
   // 路径格式: 行业/取件码/账号名/文件名.mp4
@@ -54,7 +40,6 @@ function extractAccountName(key, pickupCode) {
 }
 
 function PickupPage({ onBack }) {
-  const [selectedIndustry, setSelectedIndustry] = useState(null)
   const [pickupCode, setPickupCode] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -132,11 +117,6 @@ function PickupPage({ onBack }) {
     e.preventDefault()
     
     // 验证
-    if (!selectedIndustry) {
-      setError('请选择您的行业')
-      return
-    }
-    
     if (!pickupCode.trim()) {
       setError('请输入取件码')
       return
@@ -152,8 +132,7 @@ function PickupPage({ onBack }) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          pickupCode: pickupCode.trim(),
-          industry: selectedIndustry
+          pickupCode: pickupCode.trim()
         })
       })
       
@@ -232,7 +211,6 @@ function PickupPage({ onBack }) {
     setFolderData(null)
     setError(null)
     setPickupCode('')
-    setSelectedIndustry(null)
     setExpandedAccounts({})
   }
 
@@ -521,7 +499,7 @@ function PickupPage({ onBack }) {
               领取您的专属内容
             </h1>
             <p className="text-gray-500 text-sm leading-relaxed">
-              选择行业并输入取件码，查看并下载您的AI生成视频
+              输入取件码，查看并下载您的AI生成视频
             </p>
           </div>
         </motion.header>
@@ -529,45 +507,6 @@ function PickupPage({ onBack }) {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* Industry Selection */}
-          <motion.section
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-2xl p-5 shadow-lg shadow-gray-200/50"
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center">
-                <Building2 className="w-4 h-4 text-primary-500" />
-              </div>
-              <label className="text-sm font-semibold text-gray-700">
-                选择行业 <span className="text-rose-500">*</span>
-              </label>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-2">
-              {industries.map((industry) => (
-                <motion.button
-                  key={industry.id}
-                  type="button"
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    setSelectedIndustry(industry.id)
-                    setError(null)
-                  }}
-                  className={`p-3 rounded-xl text-center transition-all duration-300 ${
-                    selectedIndustry === industry.id
-                      ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg shadow-primary-500/30'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <span className="text-xl mb-1 block">{industry.icon}</span>
-                  <span className="text-xs font-medium">{industry.name}</span>
-                </motion.button>
-              ))}
-            </div>
-          </motion.section>
-
           {/* Pickup Code Input */}
           <motion.section
             initial={{ y: 20, opacity: 0 }}
@@ -628,10 +567,10 @@ function PickupPage({ onBack }) {
           >
             <motion.button
               type="submit"
-              disabled={isLoading || !selectedIndustry || !pickupCode.trim()}
+              disabled={isLoading || !pickupCode.trim()}
               whileTap={{ scale: 0.98 }}
               className={`w-full py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-3 transition-all duration-300 ${
-                selectedIndustry && pickupCode.trim() && !isLoading
+                pickupCode.trim() && !isLoading
                   ? 'bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-500 text-white shadow-xl shadow-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/40'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}

@@ -76,13 +76,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { industry, code } = req.body
+    const { code } = req.body
 
     // 参数验证
-    if (!industry || !code) {
+    if (!code) {
       return res.status(400).json({
         success: false,
-        message: '请提供行业和取件码'
+        message: '请提供取件码'
       })
     }
 
@@ -96,14 +96,6 @@ export default async function handler(req, res) {
       return res.status(404).json({
         success: false,
         message: '取件码不存在，请检查后重试'
-      })
-    }
-
-    // 验证行业是否匹配
-    if (pickupData.industry !== industry) {
-      return res.status(400).json({
-        success: false,
-        message: '取件码与所选行业不匹配'
       })
     }
 

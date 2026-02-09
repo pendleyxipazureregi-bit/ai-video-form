@@ -66,7 +66,7 @@ function mockApiPlugin() {
           req.on('data', chunk => { body += chunk })
           req.on('end', () => {
             try {
-              const { pickupCode, industry } = JSON.parse(body)
+              const { pickupCode } = JSON.parse(body)
               
               res.setHeader('Content-Type', 'application/json')
 
@@ -79,21 +79,18 @@ function mockApiPlugin() {
                 return
               }
 
-              if (!industry) {
-                res.statusCode = 400
-                res.end(JSON.stringify({
-                  success: false,
-                  message: '请选择行业'
-                }))
-                return
-              }
-
               const normalizedCode = pickupCode.toString().trim()
-              const industryName = INDUSTRY_MAP[industry] || industry
               
-              // 查找模拟数据
-              const industryFiles = MOCK_FILES[industryName]
-              const files = industryFiles ? industryFiles[normalizedCode] : null
+              // 遍历所有行业查找取件码
+              let files = null
+              let matchedIndustry = null
+              for (const [industryName, codes] of Object.entries(MOCK_FILES)) {
+                if (codes[normalizedCode]) {
+                  files = codes[normalizedCode]
+                  matchedIndustry = industryName
+                  break
+                }
+              }
 
               if (!files || files.length === 0) {
                 res.statusCode = 404
@@ -116,7 +113,7 @@ function mockApiPlugin() {
               res.end(JSON.stringify({
                 success: true,
                 folderName: normalizedCode,
-                industry: industryName,
+                industry: matchedIndustry,
                 fileCount: filesWithUrls.length,
                 files: filesWithUrls
               }))

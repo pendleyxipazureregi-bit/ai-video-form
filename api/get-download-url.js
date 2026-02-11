@@ -96,7 +96,8 @@ export default async function handler(request, response) {
       const found = (data.Contents || []).filter(item => {
         if (parseInt(item.Size) === 0) return false;
         if (item.Key.endsWith('/')) return false;
-        return isVideoFile(item.Key, item.Size);
+        // 保留视频文件和txt文件
+        return isVideoFile(item.Key, item.Size) || item.Key.toLowerCase().endsWith('.txt');
       });
 
       if (found.length > 0) {
@@ -109,7 +110,7 @@ export default async function handler(request, response) {
     if (videoFiles.length === 0) {
       return response.status(404).json({
         success: false,
-        message: '未找到该取件码对应的视频文件，请检查取件码是否正确'
+        message: '未找到该取件码对应的文件，请检查取件码是否正确'
       });
     }
 

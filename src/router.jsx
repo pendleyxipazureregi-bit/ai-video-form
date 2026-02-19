@@ -6,14 +6,8 @@ import AdminLayout from './components/AdminLayout.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import CustomerList from './pages/CustomerList.jsx'
 import CustomerDetail from './pages/CustomerDetail.jsx'
-
-function PlaceholderPage({ title }) {
-  return (
-    <div className="flex items-center justify-center h-full text-gray-400 text-lg">
-      {title} — 即将实现
-    </div>
-  )
-}
+import AdminLogs from './pages/AdminLogs.jsx'
+import CustomerStatus from './pages/CustomerStatus.jsx'
 
 const router = createBrowserRouter([
   {
@@ -46,13 +40,13 @@ const router = createBrowserRouter([
       },
       {
         path: 'logs',
-        element: <PlaceholderPage title="操作日志" />,
+        element: <AdminLogs />,
       },
     ],
   },
   {
     path: '/status',
-    element: <PlaceholderPage title="客户自助查询" />,
+    element: <CustomerStatus />,
   },
 ])
 

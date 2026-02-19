@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Package, 
@@ -39,7 +40,8 @@ function extractAccountName(key, pickupCode) {
   return '默认'
 }
 
-function PickupPage({ onBack }) {
+function PickupPage() {
+  const navigate = useNavigate()
   const [pickupCode, setPickupCode] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -442,12 +444,12 @@ function PickupPage({ onBack }) {
               领取其他取件码
             </button>
             
-            <button
-              onClick={onBack}
-              className="w-full text-gray-400 text-sm hover:text-gray-600 transition-colors"
+            <Link
+              to="/"
+              className="w-full block text-center text-gray-400 text-sm hover:text-gray-600 transition-colors"
             >
               返回首页
-            </button>
+            </Link>
           </motion.div>
 
           {/* Footer */}
@@ -482,13 +484,13 @@ function PickupPage({ onBack }) {
           transition={{ duration: 0.5 }}
           className="mb-8"
         >
-          <button
-            onClick={onBack}
+          <Link
+            to="/"
             className="flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-4 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="text-sm">返回首页</span>
-          </button>
+          </Link>
           
           <div className="text-center">
             <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm mb-4">

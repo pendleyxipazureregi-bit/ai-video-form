@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Sparkles, 
@@ -16,7 +17,6 @@ import {
   MessageSquare,
   Package
 } from 'lucide-react'
-import PickupPage from './PickupPage'
 
 // 钉钉 API 代理端点（通过 Vercel Serverless Function 中转，避免 CORS 问题）
 const DINGTALK_API = '/api/dingtalk'
@@ -92,9 +92,6 @@ const colorClasses = {
 }
 
 function App() {
-  // Page state: 'form' | 'pickup'
-  const [currentPage, setCurrentPage] = useState('form')
-  
   // Basic info
   const [contactName, setContactName] = useState('')
   const [baseType, setBaseType] = useState('指定基地')
@@ -122,11 +119,6 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [submissionResult, setSubmissionResult] = useState(null)
-
-  // 如果是领取页面，渲染 PickupPage
-  if (currentPage === 'pickup') {
-    return <PickupPage onBack={() => setCurrentPage('form')} />
-  }
 
   const handleAddBase = () => {
     setMultipleBaseNames([...multipleBaseNames, ''])
@@ -422,14 +414,13 @@ ${baseType === '全国换住' && routePlan.trim() ? `换住路线：${routePlan.
               <Sparkles className="w-4 h-4 text-amber-500" />
               <span className="text-sm text-primary-600 font-medium">提交需求</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setCurrentPage('pickup')}
+            <Link
+              to="/pickup"
               className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm hover:bg-white/80 transition-all"
             >
               <Package className="w-4 h-4 text-emerald-500" />
               <span className="text-sm text-gray-600 font-medium">领取内容</span>
-            </button>
+            </Link>
           </div>
           
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-700 via-primary-600 to-primary-800 bg-clip-text text-transparent font-display mb-3">

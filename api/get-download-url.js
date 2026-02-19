@@ -58,8 +58,20 @@ export default async function handler(request, response) {
       SecretKey: process.env.TENCENT_SECRET_KEY,
     });
 
-    // 3. 获取参数 (从 body 中)
-    const { pickupCode } = request.body || {};
+    // 3. 获取参数 (兼容多种请求方式)
+    let body = request.body;
+
+    // 如果 body 是字符串（Content-Type 未设置为 application/json 时），手动解析
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        return response.status(400).json({ error: 'Invalid JSON body' });
+      }
+    }
+
+    // 同时支持从 query string 获取参数（GET 请求兼容）
+    const pickupCode = (body && body.pickupCode) || request.query?.pickupCode;
 
     if (!pickupCode) {
       return response.status(400).json({ error: 'Missing parameters: pickupCode is required' });

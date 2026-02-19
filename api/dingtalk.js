@@ -1,6 +1,6 @@
 // Vercel Serverless Function - 钉钉 Webhook 代理
 // 更新时间: 2025-12-20
-const DINGTALK_WEBHOOK = 'https://oapi.dingtalk.com/robot/send?access_token=8eea0d7afa945d0a5c46bc9533932ec8685726e72a5d83d69d0a3ab260170efc'
+const DINGTALK_WEBHOOK = process.env.DINGTALK_WEBHOOK_URL || 'https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN_HERE'
 
 export default async function handler(req, res) {
   // 只允许 POST 请求

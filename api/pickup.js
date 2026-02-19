@@ -2,7 +2,7 @@
 //
 // 从数据库查询取件码关联的客户信息
 
-import { getCustomerByPickupCode } from './lib/db.js'
+import { getCustomerByPickupCode } from './_lib/db.js'
 
 export default async function handler(req, res) {
   // 设置 CORS 头

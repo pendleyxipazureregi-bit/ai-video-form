@@ -3,7 +3,7 @@
 // POST: 验证用户名密码，签发 JWT Token
 
 import crypto from 'crypto';
-import { signAdminToken } from '../lib/auth.js';
+import { signAdminToken } from '../_lib/auth.js';
 
 // 管理员账号（用户名明文，密码存 SHA-256 哈希）
 const ADMIN_USERNAME = 'admin';

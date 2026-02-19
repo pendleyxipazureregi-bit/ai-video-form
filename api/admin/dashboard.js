@@ -2,8 +2,8 @@
 //
 // GET: 获取运营仪表盘统计数据
 
-import { verifyAdmin } from '../lib/auth.js';
-import { getDashboardStats } from '../lib/db.js';
+import { verifyAdmin } from '../_lib/auth.js';
+import { getDashboardStats } from '../_lib/db.js';
 
 export default async function handler(req, res) {
   // 设置 CORS 头

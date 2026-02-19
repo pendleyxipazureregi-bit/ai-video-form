@@ -1,4 +1,4 @@
-import { getCustomerByPickupCode, upsertDevice } from '../lib/db.js';
+import { getCustomerByPickupCode, upsertDevice } from '../_lib/db.js';
 
 export default async function handler(req, res) {
   // 设置 CORS 头

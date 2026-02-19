@@ -1,5 +1,5 @@
-import { getCustomerByPickupCode } from '../lib/db.js';
-import { generateSignedToken } from '../lib/token.js';
+import { getCustomerByPickupCode } from '../_lib/db.js';
+import { generateSignedToken } from '../_lib/token.js';
 import { sql } from '@vercel/postgres';
 
 // graceStatus 对应的提示信息

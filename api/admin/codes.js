@@ -3,8 +3,8 @@
 // POST: 为客户追加生成取件码
 // PUT:  修改取件码（停用/启用/设置别名）
 
-import { verifyAdmin } from '../lib/auth.js';
-import { generatePickupCodes, logAdminAction, updatePickupCode } from '../lib/db.js';
+import { verifyAdmin } from '../_lib/auth.js';
+import { generatePickupCodes, logAdminAction, updatePickupCode } from '../_lib/db.js';
 
 export default async function handler(req, res) {
   // 设置 CORS 头

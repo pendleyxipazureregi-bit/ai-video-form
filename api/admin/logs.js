@@ -2,8 +2,8 @@
 //
 // GET: 分页查询操作日志
 
-import { verifyAdmin } from '../lib/auth.js';
-import { getAdminLogs } from '../lib/db.js';
+import { verifyAdmin } from '../_lib/auth.js';
+import { getAdminLogs } from '../_lib/db.js';
 
 export default async function handler(req, res) {
   // 设置 CORS 头

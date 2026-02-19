@@ -4,8 +4,8 @@
 // POST: 新建客户（可同时生成取件码）
 
 import { sql } from '@vercel/postgres';
-import { verifyAdmin } from '../lib/auth.js';
-import { generatePickupCodes, logAdminAction } from '../lib/db.js';
+import { verifyAdmin } from '../_lib/auth.js';
+import { generatePickupCodes, logAdminAction } from '../_lib/db.js';
 
 export default async function handler(req, res) {
   // 设置 CORS 头

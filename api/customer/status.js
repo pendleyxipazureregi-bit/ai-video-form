@@ -3,7 +3,7 @@
 // GET: 客户输入取件码查询自己的客户信息和设备状态
 // 不需要 JWT 认证（面向客户使用）
 
-import { getCustomerStatusByCode } from '../lib/db.js';
+import { getCustomerStatusByCode } from '../_lib/db.js';
 
 export default async function handler(req, res) {
   // 设置 CORS 头（不需要 Authorization）

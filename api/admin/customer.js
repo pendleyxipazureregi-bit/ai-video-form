@@ -4,8 +4,8 @@
 // PUT: 修改客户信息（COALESCE 保留未提供字段）
 
 import { sql } from '@vercel/postgres';
-import { verifyAdmin } from '../lib/auth.js';
-import { logAdminAction } from '../lib/db.js';
+import { verifyAdmin } from '../_lib/auth.js';
+import { logAdminAction } from '../_lib/db.js';
 
 export default async function handler(req, res) {
   // 设置 CORS 头

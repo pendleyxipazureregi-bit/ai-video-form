@@ -449,3 +449,174 @@ export async function getRevenueStats() {
   return { totalRevenue, monthRevenue, monthOrders, recentOrders };
 }
 
+// ==================== AI 错误上报系统 ====================
+
+/**
+ * 注册设备并返回 Token（已注册则返回已有 Token）
+ */
+export async function registerDeviceToken(deviceId, deviceInfo) {
+    const { rows: existing } = await sql`
+        SELECT token FROM device_tokens WHERE device_id = ${deviceId};
+    `;
+    if (existing.length > 0) {
+        return existing[0].token;
+    }
+
+    const crypto = await import('crypto');
+    const token = crypto.randomBytes(64).toString('base64url');
+
+    await sql`
+        INSERT INTO device_tokens (device_id, token, device_brand, device_model, sdk_int, screen_width, screen_height)
+        VALUES (
+            ${deviceId},
+            ${token},
+            ${deviceInfo?.brand || null},
+            ${deviceInfo?.model || null},
+            ${deviceInfo?.sdkInt || null},
+            ${deviceInfo?.width || null},
+            ${deviceInfo?.height || null}
+        );
+    `;
+    return token;
+}
+
+/**
+ * 验证设备 Token，返回对应的 deviceId 或 null
+ */
+export async function verifyDeviceToken(token) {
+    const { rows } = await sql`
+        SELECT device_id FROM device_tokens
+        WHERE token = ${token} AND expires_at > NOW();
+    `;
+    return rows.length > 0 ? rows[0].device_id : null;
+}
+
+/**
+ * 检查 requestId 是否已存在（防重放），不存在则插入占位行
+ * 返回 true = 新请求，false = 重复
+ */
+export async function checkAndInsertRequestId(requestId, deviceId) {
+    try {
+        await sql`
+            INSERT INTO error_reports (request_id, device_id)
+            VALUES (${requestId}, ${deviceId});
+        `;
+        return true;
+    } catch (e) {
+        if (e.code === '23505') return false;
+        throw e;
+    }
+}
+
+/**
+ * 检查设备小时内请求次数（限流 100次/小时）
+ * 返回 true = 未超限
+ */
+export async function checkDeviceRateLimit(deviceId, limit = 100) {
+    const hourKey = new Date().toISOString().slice(0, 13);
+    const { rows } = await sql`
+        INSERT INTO device_rate_limits (device_id, hour_key, count)
+        VALUES (${deviceId}, ${hourKey}, 1)
+        ON CONFLICT (device_id, hour_key) DO UPDATE SET count = device_rate_limits.count + 1
+        RETURNING count;
+    `;
+    return rows[0].count <= limit;
+}
+
+/**
+ * 保存完整错误报告（更新 checkAndInsertRequestId 插入的占位行）
+ */
+export async function saveErrorReport(data) {
+    const { rows } = await sql`
+        UPDATE error_reports SET
+            platform = ${data.platform || null},
+            step = ${data.step || null},
+            error_msg = ${data.errorMsg || null},
+            screenshot = ${data.screenshot || null},
+            screenshot_omitted = ${data.screenshotOmitted || false},
+            state = ${data.state || null},
+            ai_action = ${data.aiAction || null},
+            ai_result = ${data.aiResult || null},
+            extra = ${JSON.stringify(data.extra || {})},
+            created_at = NOW()
+        WHERE request_id = ${data.requestId}
+        RETURNING id;
+    `;
+    return rows.length > 0 ? rows[0].id : null;
+}
+
+/**
+ * 分页查询错误报告（管理后台用，不含 screenshot 大字段）
+ */
+export async function getErrorReports({ deviceId, platform, page = 1, limit = 20 }) {
+    const offset = (page - 1) * limit;
+
+    let countQuery;
+    if (deviceId && platform) {
+        const { rows } = await sql`SELECT COUNT(*)::int AS total FROM error_reports WHERE device_id = ${deviceId} AND platform = ${platform};`;
+        countQuery = rows[0].total;
+    } else if (deviceId) {
+        const { rows } = await sql`SELECT COUNT(*)::int AS total FROM error_reports WHERE device_id = ${deviceId};`;
+        countQuery = rows[0].total;
+    } else if (platform) {
+        const { rows } = await sql`SELECT COUNT(*)::int AS total FROM error_reports WHERE platform = ${platform};`;
+        countQuery = rows[0].total;
+    } else {
+        const { rows } = await sql`SELECT COUNT(*)::int AS total FROM error_reports;`;
+        countQuery = rows[0].total;
+    }
+
+    let reports;
+    if (deviceId && platform) {
+        const { rows } = await sql`
+            SELECT id, request_id, device_id, platform, step, error_msg, screenshot_omitted, state, ai_action, ai_result, created_at
+            FROM error_reports WHERE device_id = ${deviceId} AND platform = ${platform}
+            ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset};
+        `;
+        reports = rows;
+    } else if (deviceId) {
+        const { rows } = await sql`
+            SELECT id, request_id, device_id, platform, step, error_msg, screenshot_omitted, state, ai_action, ai_result, created_at
+            FROM error_reports WHERE device_id = ${deviceId}
+            ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset};
+        `;
+        reports = rows;
+    } else if (platform) {
+        const { rows } = await sql`
+            SELECT id, request_id, device_id, platform, step, error_msg, screenshot_omitted, state, ai_action, ai_result, created_at
+            FROM error_reports WHERE platform = ${platform}
+            ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset};
+        `;
+        reports = rows;
+    } else {
+        const { rows } = await sql`
+            SELECT id, request_id, device_id, platform, step, error_msg, screenshot_omitted, state, ai_action, ai_result, created_at
+            FROM error_reports
+            ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset};
+        `;
+        reports = rows;
+    }
+
+    return { total: countQuery, reports, page, limit };
+}
+
+/**
+ * 获取当前活跃的远程配置
+ */
+export async function getActiveDeviceConfig() {
+    const { rows } = await sql`
+        SELECT config_version, config_body, signature, last_updated
+        FROM device_configs WHERE is_active = TRUE
+        ORDER BY config_version DESC LIMIT 1;
+    `;
+    return rows.length > 0 ? rows[0] : null;
+}
+
+/**
+ * 清理过期限流记录
+ */
+export async function cleanupRateLimits() {
+    const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString().slice(0, 13);
+    await sql`DELETE FROM device_rate_limits WHERE hour_key < ${cutoff};`;
+}
+

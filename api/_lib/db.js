@@ -39,7 +39,8 @@ export async function upsertDevice(pickupCode, deviceData) {
     osVersion,
     lastPublishTime,
     deviceStatus,
-    configSnapshot
+    configSnapshot,
+    monitorData
   } = deviceData;
 
   const { rowCount } = await sql`
@@ -52,11 +53,44 @@ export async function upsertDevice(pickupCode, deviceData) {
       last_publish_time = ${lastPublishTime || null},
       device_status = ${deviceStatus || 'online'},
       config_snapshot = ${configSnapshot ? JSON.stringify(configSnapshot) : null},
+      monitor_data = ${monitorData ? JSON.stringify(monitorData) : null},
       last_heartbeat = NOW()
     WHERE pickup_code = ${pickupCode};
   `;
 
   return rowCount > 0;
+}
+
+/**
+ * 2b. 获取单个设备/取件码的详细信息（含客户信息和监控数据）
+ */
+export async function getDeviceDetail(pickupCode) {
+  const { rows } = await sql`
+    SELECT
+      p.pickup_code,
+      p.device_id,
+      p.device_alias,
+      p.device_model,
+      p.app_version,
+      p.os_version,
+      p.device_status,
+      p.last_heartbeat,
+      p.last_publish_time,
+      p.is_active,
+      p.config_snapshot,
+      p.monitor_data,
+      p.created_at AS code_created_at,
+      c.customer_id,
+      c.customer_name,
+      c.plan,
+      c.end_date,
+      c.status AS customer_status
+    FROM pickup_codes p
+    JOIN customers c ON p.customer_id = c.customer_id
+    WHERE p.pickup_code = ${pickupCode};
+  `;
+
+  return rows.length > 0 ? rows[0] : null;
 }
 
 /**
@@ -270,5 +304,145 @@ export async function updatePickupCode(code, data) {
   `;
 
   return rows.length > 0 ? rows[0] : null;
+}
+
+/* =========================================
+   Task 3d: 设备指令/通知
+   ========================================= */
+
+/**
+ * 10. 创建设备指令
+ */
+export async function createDeviceCommand(pickupCode, commandType, payload) {
+  const { rows } = await sql`
+    INSERT INTO device_commands (pickup_code, command_type, payload)
+    VALUES (${pickupCode}, ${commandType}, ${JSON.stringify(payload || {})})
+    RETURNING *;
+  `;
+  return rows[0];
+}
+
+/**
+ * 11. 获取设备待执行指令（心跳拉取）并标记为已发送
+ */
+export async function fetchAndMarkCommands(pickupCode) {
+  const { rows } = await sql`
+    UPDATE device_commands
+    SET status = 'sent', sent_at = NOW()
+    WHERE id IN (
+      SELECT id FROM device_commands
+      WHERE pickup_code = ${pickupCode} AND status = 'pending'
+      ORDER BY created_at ASC
+      LIMIT 10
+    )
+    RETURNING id, command_type, payload;
+  `;
+  return rows;
+}
+
+/**
+ * 12. 查询设备指令历史（管理后台用，最近20条）
+ */
+export async function getDeviceCommandHistory(pickupCode) {
+  const { rows } = await sql`
+    SELECT * FROM device_commands
+    WHERE pickup_code = ${pickupCode}
+    ORDER BY created_at DESC
+    LIMIT 20;
+  `;
+  return rows;
+}
+
+/* =========================================
+   Task 4b: 订单/支付
+   ========================================= */
+
+/**
+ * 13. 创建订单
+ */
+export async function createOrder(orderData) {
+  const { orderId, customerId, pickupCode, plan, durationDays, amount, paymentChannel, detail } = orderData;
+  const { rows } = await sql`
+    INSERT INTO orders (order_id, customer_id, pickup_code, plan, duration_days, amount, payment_channel, detail)
+    VALUES (
+      ${orderId},
+      ${customerId || null},
+      ${pickupCode || null},
+      ${plan},
+      ${durationDays || 30},
+      ${amount || 0},
+      ${paymentChannel || null},
+      ${detail ? JSON.stringify(detail) : '{}'}
+    )
+    RETURNING *;
+  `;
+  return rows[0];
+}
+
+/**
+ * 14. 更新订单支付状态
+ */
+export async function updateOrderStatus(orderId, status, tradeNo) {
+  const { rows } = await sql`
+    UPDATE orders
+    SET
+      payment_status = ${status},
+      trade_no = COALESCE(${tradeNo || null}, trade_no),
+      paid_at = CASE WHEN ${status} = 'paid' THEN NOW() ELSE paid_at END
+    WHERE order_id = ${orderId}
+    RETURNING *;
+  `;
+  return rows.length > 0 ? rows[0] : null;
+}
+
+/**
+ * 15. 查询单个订单
+ */
+export async function getOrder(orderId) {
+  const { rows } = await sql`
+    SELECT * FROM orders WHERE order_id = ${orderId};
+  `;
+  return rows.length > 0 ? rows[0] : null;
+}
+
+/**
+ * 16. 收入统计（仪表盘用）
+ */
+export async function getRevenueStats() {
+  // 总收入
+  const { rows: r1 } = await sql`
+    SELECT COALESCE(SUM(amount), 0)::int AS total
+    FROM orders WHERE payment_status = 'paid';
+  `;
+  const totalRevenue = r1[0].total;
+
+  // 本月收入
+  const { rows: r2 } = await sql`
+    SELECT COALESCE(SUM(amount), 0)::int AS total
+    FROM orders
+    WHERE payment_status = 'paid'
+      AND paid_at >= date_trunc('month', CURRENT_DATE);
+  `;
+  const monthRevenue = r2[0].total;
+
+  // 本月订单数
+  const { rows: r3 } = await sql`
+    SELECT COUNT(*)::int AS count
+    FROM orders
+    WHERE payment_status = 'paid'
+      AND paid_at >= date_trunc('month', CURRENT_DATE);
+  `;
+  const monthOrders = r3[0].count;
+
+  // 最近订单（最新10条）
+  const { rows: recentOrders } = await sql`
+    SELECT o.*, c.customer_name
+    FROM orders o
+    LEFT JOIN customers c ON o.customer_id = c.customer_id
+    ORDER BY o.created_at DESC
+    LIMIT 10;
+  `;
+
+  return { totalRevenue, monthRevenue, monthOrders, recentOrders };
 }
 

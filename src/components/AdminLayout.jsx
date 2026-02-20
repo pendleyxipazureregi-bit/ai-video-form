@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, FileText, LogOut, Menu, X, Shield } from 'lucide-react'
+import { LayoutDashboard, Users, FileText, LogOut, Menu, X, Shield, DollarSign } from 'lucide-react'
 
 const navItems = [
   { to: '/admin', label: '仪表盘', icon: LayoutDashboard, end: true },
   { to: '/admin/customers', label: '客户管理', icon: Users, end: false },
+  { to: '/admin/revenue', label: '收入与订单', icon: DollarSign, end: false },
   { to: '/admin/logs', label: '操作日志', icon: FileText, end: false },
 ]
 

@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard.jsx'
 import CustomerList from './pages/CustomerList.jsx'
 import CustomerDetail from './pages/CustomerDetail.jsx'
 import AdminLogs from './pages/AdminLogs.jsx'
+import DeviceDetail from './pages/DeviceDetail.jsx'
+import Revenue from './pages/Revenue.jsx'
 import CustomerStatus from './pages/CustomerStatus.jsx'
 
 const router = createBrowserRouter([
@@ -39,8 +41,16 @@ const router = createBrowserRouter([
         element: <CustomerDetail />,
       },
       {
+        path: 'revenue',
+        element: <Revenue />,
+      },
+      {
         path: 'logs',
         element: <AdminLogs />,
+      },
+      {
+        path: 'devices/:code',
+        element: <DeviceDetail />,
       },
     ],
   },

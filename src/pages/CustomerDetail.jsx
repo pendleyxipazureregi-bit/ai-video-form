@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, Loader2, Edit3, Save, X, Calendar, Pause, Play,
-  Plus, Copy, Check, ToggleLeft, ToggleRight, Pencil,
+  Plus, Copy, Check, ToggleLeft, ToggleRight, Pencil, FileText, ExternalLink,
 } from 'lucide-react'
 import { adminFetch, formatDate, timeAgo, daysUntil } from '../utils/api'
 
@@ -191,6 +191,81 @@ function AddCodesModal({ customerId, onClose, onSuccess }) {
 }
 
 /* =========================================
+   导出取件码弹窗
+   ========================================= */
+function ExportCodesModal({ customer, devices, onClose }) {
+  const [copied, setCopied] = useState(false)
+
+  const isOnline = (lastHeartbeat) => {
+    if (!lastHeartbeat) return false
+    return Date.now() - new Date(lastHeartbeat).getTime() < 24 * 60 * 60 * 1000
+  }
+
+  const textContent = [
+    `客户: ${customer.customer_name}`,
+    `套餐: ${planLabel(customer.plan)}`,
+    `到期: ${formatDate(customer.end_date)}`,
+    `导出时间: ${new Date().toLocaleString('zh-CN')}`,
+    `${'─'.repeat(40)}`,
+    ...devices.map((d, i) => {
+      const status = d.is_active ? '启用' : '停用'
+      const online = d.device_id ? (isOnline(d.last_heartbeat) ? '在线' : '离线') : '未绑定'
+      const alias = d.device_alias || d.device_model || ''
+      return `${i + 1}. ${d.pickup_code}  |  ${status}  |  ${online}${alias ? '  |  ' + alias : ''}`
+    }),
+  ].join('\n')
+
+  const handleCopyAll = async () => {
+    try {
+      await navigator.clipboard.writeText(textContent)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // fallback
+      const ta = document.createElement('textarea')
+      ta.value = textContent
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-gray-800">导出取件码</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <pre className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 font-mono whitespace-pre-wrap max-h-80 overflow-y-auto leading-relaxed border border-gray-200">
+          {textContent}
+        </pre>
+        <div className="flex gap-3 mt-5">
+          <button onClick={onClose} className="flex-1 py-2.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition-colors">
+            关闭
+          </button>
+          <button
+            onClick={handleCopyAll}
+            className={`flex-1 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 transition-all ${
+              copied
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-gradient-to-r from-primary-600 to-primary-700 text-white'
+            }`}
+          >
+            {copied ? <><Check className="w-4 h-4" /> 已复制</> : <><Copy className="w-4 h-4" /> 一键复制</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* =========================================
    可编辑设备别名
    ========================================= */
 function EditableAlias({ code, alias, onSaved }) {
@@ -260,6 +335,7 @@ function CustomerDetail() {
   const [saving, setSaving] = useState(false)
   const [showRenew, setShowRenew] = useState(false)
   const [showAddCodes, setShowAddCodes] = useState(false)
+  const [showExportCodes, setShowExportCodes] = useState(false)
   const [togglingCode, setTogglingCode] = useState(null)
 
   const fetchDetail = useCallback(async () => {
@@ -525,6 +601,15 @@ function CustomerDetail() {
               <><Pause className="w-4 h-4" /> 暂停服务</>
             )}
           </button>
+          {devices.length > 0 && (
+            <button
+              onClick={() => setShowExportCodes(true)}
+              className="px-4 py-2.5 bg-violet-50 text-violet-700 hover:bg-violet-100 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors"
+            >
+              <FileText className="w-4 h-4" />
+              导出取件码
+            </button>
+          )}
         </div>
       )}
 
@@ -590,6 +675,17 @@ function CustomerDetail() {
                       )}
                     </div>
 
+                    {/* 查看详情链接 */}
+                    {hasBound && (
+                      <Link
+                        to={`/admin/devices/${encodeURIComponent(d.pickup_code)}`}
+                        className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium flex-shrink-0 transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">详情</span>
+                      </Link>
+                    )}
+
                     {/* 启用/停用开关 */}
                     <button
                       onClick={() => toggleCodeActive(d.pickup_code, d.is_active)}
@@ -630,6 +726,15 @@ function CustomerDetail() {
           customerId={id}
           onClose={() => setShowAddCodes(false)}
           onSuccess={fetchDetail}
+        />
+      )}
+
+      {/* 导出取件码弹窗 */}
+      {showExportCodes && (
+        <ExportCodesModal
+          customer={customer}
+          devices={devices}
+          onClose={() => setShowExportCodes(false)}
         />
       )}
     </div>

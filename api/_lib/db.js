@@ -18,7 +18,8 @@ export async function getCustomerByPickupCode(pickupCode) {
       p.pickup_code,
       p.device_id,
       p.is_active,
-      p.config_snapshot
+      p.config_snapshot,
+      p.account_name
     FROM pickup_codes p
     JOIN customers c ON p.customer_id = c.customer_id
     WHERE p.pickup_code = ${pickupCode};
@@ -79,6 +80,7 @@ export async function getDeviceDetail(pickupCode) {
       p.is_active,
       p.config_snapshot,
       p.monitor_data,
+      p.account_name,
       p.created_at AS code_created_at,
       c.customer_id,
       c.customer_name,
@@ -276,7 +278,7 @@ export async function getCustomerStatusByCode(code) {
 
   // 查该客户名下所有取件码和设备状态
   const { rows: devices } = await sql`
-    SELECT pickup_code, device_alias, device_model, device_status, last_heartbeat, is_active
+    SELECT pickup_code, device_alias, device_model, device_status, last_heartbeat, is_active, account_name
     FROM pickup_codes
     WHERE customer_id = ${customerId}
     ORDER BY created_at ASC;
@@ -292,13 +294,14 @@ export async function getCustomerStatusByCode(code) {
  * @returns 更新后的记录，或 null
  */
 export async function updatePickupCode(code, data) {
-  const { isActive, deviceAlias } = data || {};
+  const { isActive, deviceAlias, accountName } = data || {};
 
   const { rows } = await sql`
     UPDATE pickup_codes
     SET
       is_active = COALESCE(${isActive !== undefined ? isActive : null}, is_active),
-      device_alias = COALESCE(${deviceAlias !== undefined ? deviceAlias : null}, device_alias)
+      device_alias = COALESCE(${deviceAlias !== undefined ? deviceAlias : null}, device_alias),
+      account_name = COALESCE(${accountName !== undefined ? accountName : null}, account_name)
     WHERE pickup_code = ${code}
     RETURNING *;
   `;

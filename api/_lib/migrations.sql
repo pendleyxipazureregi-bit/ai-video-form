@@ -38,3 +38,6 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders (customer_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status   ON orders (payment_status);
 
+-- account_name: 取件码对应的账号名称（小红书/抖音/快手/视频号共用）
+ALTER TABLE pickup_codes ADD COLUMN IF NOT EXISTS account_name VARCHAR(100);
+

@@ -48,7 +48,8 @@ export default async function handler(req, res) {
         isOnline: d.last_heartbeat
           ? (now - new Date(d.last_heartbeat)) < 24 * 60 * 60 * 1000
           : false,
-        lastHeartbeat: d.last_heartbeat
+        lastHeartbeat: d.last_heartbeat,
+        accountName: d.account_name
       }));
 
       return res.status(200).json({

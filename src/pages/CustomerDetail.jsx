@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, Loader2, Edit3, Save, X, Calendar, Pause, Play,
-  Plus, Copy, Check, ToggleLeft, ToggleRight, Pencil, FileText, ExternalLink,
+  Plus, Copy, Check, ToggleLeft, ToggleRight, Pencil, FileText, ExternalLink, UserCircle,
 } from 'lucide-react'
 import { adminFetch, formatDate, timeAgo, daysUntil } from '../utils/api'
 
@@ -210,8 +210,9 @@ function ExportCodesModal({ customer, devices, onClose }) {
     ...devices.map((d, i) => {
       const status = d.is_active ? '启用' : '停用'
       const online = d.device_id ? (isOnline(d.last_heartbeat) ? '在线' : '离线') : '未绑定'
+      const accountName = d.account_name || '未填写'
       const alias = d.device_alias || d.device_model || ''
-      return `${i + 1}. ${d.pickup_code}  |  ${status}  |  ${online}${alias ? '  |  ' + alias : ''}`
+      return `${i + 1}. ${d.pickup_code}  |  ${status}  |  ${online}  |  账号：${accountName}${alias ? '  |  ' + alias : ''}`
     }),
   ].join('\n')
 
@@ -322,6 +323,79 @@ function EditableAlias({ code, alias, onSaved }) {
 }
 
 /* =========================================
+   平台图标
+   ========================================= */
+function PlatformIcons() {
+  return (
+    <span className="inline-flex items-center gap-1" title="小红书 / 抖音 / 快手 / 视频号">
+      <span className="w-4.5 h-4.5 rounded text-[10px] font-bold bg-red-100 text-red-500 inline-flex items-center justify-center leading-none">红</span>
+      <span className="w-4.5 h-4.5 rounded text-[10px] font-bold bg-gray-900 text-white inline-flex items-center justify-center leading-none">抖</span>
+      <span className="w-4.5 h-4.5 rounded text-[10px] font-bold bg-orange-100 text-orange-500 inline-flex items-center justify-center leading-none">快</span>
+      <span className="w-4.5 h-4.5 rounded text-[10px] font-bold bg-green-100 text-green-600 inline-flex items-center justify-center leading-none">视</span>
+    </span>
+  )
+}
+
+/* =========================================
+   编辑账号名称弹窗
+   ========================================= */
+function EditAccountNameModal({ code, currentName, onClose, onSuccess }) {
+  const [value, setValue] = useState(currentName || '')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const data = await adminFetch(`/api/admin/codes?code=${encodeURIComponent(code)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ accountName: value }),
+      })
+      if (data.success) {
+        onSuccess()
+        onClose()
+      }
+    } catch {
+      // handled
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-bold text-gray-800 mb-1">编辑账号名称</h3>
+        <p className="text-sm text-gray-500 mb-1">取件码：<code className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs">{code}</code></p>
+        <p className="text-xs text-gray-400 mb-5">该账号名称在小红书、抖音、快手、视频号四个平台上相同</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">账号名称</label>
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="如：旅行日记A"
+              autoFocus
+              className="w-full px-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-primary-500 transition-all duration-300"
+            />
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition-colors">
+              取消
+            </button>
+            <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              保存
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+/* =========================================
    客户详情主组件
    ========================================= */
 function CustomerDetail() {
@@ -336,6 +410,7 @@ function CustomerDetail() {
   const [showRenew, setShowRenew] = useState(false)
   const [showAddCodes, setShowAddCodes] = useState(false)
   const [showExportCodes, setShowExportCodes] = useState(false)
+  const [editAccountName, setEditAccountName] = useState(null) // { code, accountName }
   const [togglingCode, setTogglingCode] = useState(null)
 
   const fetchDetail = useCallback(async () => {
@@ -643,6 +718,23 @@ function CustomerDetail() {
                       {d.pickup_code}
                     </code>
 
+                    {/* 账号名称 + 平台图标 */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => setEditAccountName({ code: d.pickup_code, accountName: d.account_name })}
+                        className="flex items-center gap-1.5 text-sm hover:text-primary-600 transition-colors group"
+                      >
+                        <UserCircle className="w-4 h-4 text-gray-400 group-hover:text-primary-500 flex-shrink-0" />
+                        {d.account_name ? (
+                          <span className="text-gray-700 font-medium">{d.account_name}</span>
+                        ) : (
+                          <span className="text-gray-400 italic">未填写</span>
+                        )}
+                        <Pencil className="w-3 h-3 text-gray-300 group-hover:text-primary-500 transition-colors" />
+                      </button>
+                      {d.account_name && <PlatformIcons />}
+                    </div>
+
                     {/* 设备信息 */}
                     <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
                       {/* 在线状态 */}
@@ -735,6 +827,16 @@ function CustomerDetail() {
           customer={customer}
           devices={devices}
           onClose={() => setShowExportCodes(false)}
+        />
+      )}
+
+      {/* 编辑账号名称弹窗 */}
+      {editAccountName && (
+        <EditAccountNameModal
+          code={editAccountName.code}
+          currentName={editAccountName.accountName}
+          onClose={() => setEditAccountName(null)}
+          onSuccess={fetchDetail}
         />
       )}
     </div>

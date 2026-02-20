@@ -84,6 +84,7 @@ export default async function handler(req, res) {
           configSnapshot,
           monitorData,
           codeCreatedAt: detail.code_created_at,
+          accountName: detail.account_name,
           // 关联客户信息
           customerId: detail.customer_id,
           customerName: detail.customer_name,
@@ -137,7 +138,7 @@ export default async function handler(req, res) {
     // ==================== PUT: 修改取件码 ====================
     if (req.method === 'PUT') {
       const { code } = req.query || {};
-      const { isActive, deviceAlias } = req.body || {};
+      const { isActive, deviceAlias, accountName } = req.body || {};
 
       if (!code) {
         return res.status(400).json({
@@ -146,7 +147,7 @@ export default async function handler(req, res) {
         });
       }
 
-      const pickupCode = await updatePickupCode(code, { isActive, deviceAlias });
+      const pickupCode = await updatePickupCode(code, { isActive, deviceAlias, accountName });
 
       if (!pickupCode) {
         return res.status(404).json({
@@ -161,7 +162,7 @@ export default async function handler(req, res) {
         'update_code',
         'pickup_code',
         code,
-        { isActive, deviceAlias }
+        { isActive, deviceAlias, accountName }
       );
 
       return res.status(200).json({

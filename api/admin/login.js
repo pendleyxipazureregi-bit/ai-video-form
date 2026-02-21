@@ -29,7 +29,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { username, password } = req.body || {};
+    // 兼容 body 为字符串或对象，避免运行时类型异常导致 500
+    let body = req.body || {};
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        return res.status(400).json({
+          success: false,
+          message: '请求体不是有效 JSON'
+        });
+      }
+    }
+
+    const username = typeof body.username === 'string' ? body.username : '';
+    const password = typeof body.password === 'string' ? body.password : '';
 
     // 参数验证
     if (!username || !password) {
@@ -54,6 +68,13 @@ export default async function handler(req, res) {
     }
 
     // 签发 JWT Token
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({
+        success: false,
+        message: '服务端认证配置缺失'
+      });
+    }
+
     const token = signAdminToken({ id: 'admin_001', username: 'admin' });
 
     return res.status(200).json({

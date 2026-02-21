@@ -1,7 +1,5 @@
 {
   "rewrites": [
-    { "source": "/api/device/:action", "destination": "/api/device/[action]" },
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/" }
+    { "source": "/:path((?!api/).*)", "destination": "/" }
   ]
 }
